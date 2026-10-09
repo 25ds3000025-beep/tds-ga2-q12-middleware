@@ -50,14 +50,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             timestamps.popleft()
 
         if len(timestamps) >= MAX_REQUESTS:
-            request_id = getattr(request.state, "request_id", None)
-            return JSONResponse(
+            request_id = request.state.request_id
+            response = JSONResponse(
                 status_code=429,
                 content={
                     "detail": "Rate limit exceeded",
                     "request_id": request_id,
                 },
             )
+            response.headers["X-Request-ID"] = request_id
+            return response
 
         timestamps.append(now)
         return await call_next(request)
@@ -75,6 +77,7 @@ app.add_middleware(
         "X-Client-Id",
         "Content-Type",
     ],
+    expose_headers=["X-Request-ID"],
 )
 
 app.add_middleware(RequestContextMiddleware)
